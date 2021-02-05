@@ -54,10 +54,12 @@ void analyze( std::vector< std::string> files){
     TTree * t = (TTree*)inputFile->Get("analyzer/trackTree");
 
     t->SetBranchAddress("genQScale",&genQScale);
-    t->GetEntry(0);
+    for( int i = 0; i<t->GetEntries(); i++){
+      t->GetEntry(i);
 
-    qHatHist->Fill(genQScale,t->GetEntries());    
-
+      qHatHist->Fill(genQScale);    
+    }
+  
     inputFile->Close();
   } 
   qHatHist->Print("All");
@@ -68,7 +70,7 @@ void analyze( std::vector< std::string> files){
 
   //analysis loop
   TFile * output = TFile::Open("PythiaOutput.root","recreate");
-  TH1D * pthat = new TH1D("pthat",";#hat{q};#sigma (pb)",40,470,3500);
+  TH1D * pthat = new TH1D("pthat",";#hat{q};#sigma (pb)",303,470,3500);
   TH1D * leadingJetPt = new TH1D("leadingJetPt",";Leading p_{T}^{gen};#sigma (pb)",50,500,1500);
   TH1D * jetPt = new TH1D("JetPt",";p_{T}^{gen};#sigma (pb)",50,100,1500);
   TH1D * genJetChargedMultiplicity_h = new TH1D("genJetChargedMultiplicity",";gen Charged Multiplicity;#sigma (pb)",70,0,140);
@@ -243,7 +245,6 @@ void analyze( std::vector< std::string> files){
   TH1D * etaStar_h_dNdEta = (TH1D*) etaStar_h->Clone("etaStar_h_dNdEta");
   etaStar_h_dNdEta->SetDirectory(output);
   etaStar_h_dNdEta->Scale(1.0/etaStarJetWeightSum);
-  mult->Scale(1.0/etaStarJetWeightSum);
 
   c1->SetLogy();
   float ptStarEntries = ptStar_h->Integral();
@@ -436,6 +437,17 @@ void analyze( std::vector< std::string> files){
   etaStar_h_dNdEta->Write();
 
   c1->SetLogy();
+  mult->SetMarkerColor(kBlack);
+  mult->SetLineColor(kBlack);
+  mult->GetYaxis()->CenterTitle();
+  mult->GetYaxis()->SetRangeUser(0.000000001,70);
+  mult->GetYaxis()->SetTitle("#sigma");
+  mult->GetXaxis()->CenterTitle();
+  mult->SetMarkerStyle(8);
+  mult->Draw("p");
+  c1->SaveAs("plots/multCrossSection.png");  
+  
+  mult->Scale(1.0/etaStarJetWeightSum);
   mult->SetMarkerColor(kBlack);
   mult->SetLineColor(kBlack);
   mult->GetYaxis()->CenterTitle();
