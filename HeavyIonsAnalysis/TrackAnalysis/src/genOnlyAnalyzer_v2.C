@@ -24,7 +24,7 @@
 #include <fstream>
 #include "include/coordinateTools.h"
 
-void analyze( std::vector< std::string> files, std::vector< std::string> files2, bool redoWeightHist){
+void analyze( std::vector< std::string> files, std::vector< std::string> files2, bool redoWeightHist, bool isHerwig){
   TH1::SetDefaultSumw2();
 
 
@@ -43,20 +43,23 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
   TH1D * qHatHist; 
   TH1D * qHatHist2; 
 
-  TFile * weights;  
-  if(redoWeightHist){
-    weights = TFile::Open("rootFiles/weights.root","recreate");  
-    qHatHist= new TH1D("qhatHist",";;qHat",nqHats,qHatBoundaries);
-    qHatHist2= new TH1D("qhatHist2",";;qHat2",nqHats,qHatBoundaries);
-  } else{
-    weights = TFile::Open("rootFiles/weights.root","read");  
-    qHatHist= (TH1D*) weights->Get("qhatHist");
-    qHatHist2= (TH1D*) weights->Get("qhatHist2");
-    qHatHist->Print("All");
-    qHatHist2->Print("All");
+  TFile * weights; 
+  if(!isHerwig){ 
+    if(redoWeightHist){
+      weights = TFile::Open("rootFiles/weights.root","recreate");  
+      qHatHist= new TH1D("qhatHist",";;qHat",nqHats,qHatBoundaries);
+      qHatHist2= new TH1D("qhatHist2",";;qHat2",nqHats,qHatBoundaries);
+    } else{
+      weights = TFile::Open("rootFiles/weights.root","read");  
+      qHatHist= (TH1D*) weights->Get("qhatHist");
+      qHatHist2= (TH1D*) weights->Get("qhatHist2");
+      qHatHist->Print("All");
+      qHatHist2->Print("All");
+    }
   }
   
   //branch definitions    
+  float genWeight = 0;
   float genQScale = 0;
   std::vector< float > * genJetPt = 0;
   std::vector< float > * genJetEta = 0;
@@ -69,7 +72,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
   std::vector< std::vector< float > > * genDau_eta = 0;
   std::vector< std::vector< float > > * genDau_phi = 0;
 
-  if(redoWeightHist){
+  if(redoWeightHist && !isHerwig){
     std::cout << "calculating weighting factors for qhat bins" << std::endl;
     for(unsigned int f = 0; f<files.size(); f++){
       std::cout << f << "/" << files.size() << std::endl;
@@ -111,7 +114,9 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
     weights->Write();
   }
  
-  TFile * output = TFile::Open("rootFiles/PythiaOutput.root","recreate");
+  TFile * output;
+  if(!isHerwig)  output = TFile::Open("rootFiles/PythiaOutput.root","recreate");
+  else           output = TFile::Open("rootFiles/HerwigOutput.root","recreate");
   //TH1D * pthat = new TH1D("pthat",";#hat{q};#sigma (pb)",303,470,3500);
   TH1D * multiplicity = new TH1D("multiplicity",";n_{ch};Normalized to Unity",70,0,140);
   TH1D * multiplicity500 = new TH1D("multiplicity500",";n_{ch};Normalized to Unity",70,0,140);
@@ -163,6 +168,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
       TTree * t = (TTree*)inputFile->Get("analyzer/trackTree");
    
       //branch definitions
+      if(isHerwig) t->SetBranchAddress("genWeight",&genWeight);
       t->SetBranchAddress("genQScale",&genQScale);
       t->SetBranchAddress("genJetPt",&genJetPt);
       t->SetBranchAddress("genJetEta",&genJetEta);
@@ -179,6 +185,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
       for(int i = 0; i<t->GetEntries(); i++){
         //zero out vectors and get entry
         genQScale = 0;
+        genWeight = 0;
         *genJetPt = std::vector< float >();
         *genJetEta = std::vector< float >();
         *genJetPhi = std::vector< float >();
@@ -193,11 +200,15 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
 
         //weight by xsection/total number of gen events in the pthat bin
         float w = 1;
-        if(x==0){
-          w = xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale));
-        }
-        if(x==1) {
-          w = xs[qHatHist2->FindBin(genQScale) - 1 ] / qHatHist2->GetBinContent(qHatHist2->FindBin(genQScale)); 
+        if(!isHerwig){
+          if(x==0){
+            w = xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale));
+          }
+          if(x==1) {
+            w = xs[qHatHist2->FindBin(genQScale) - 1 ] / qHatHist2->GetBinContent(qHatHist2->FindBin(genQScale)); 
+          }
+        } else{
+          w = genWeight; 
         }
 
         //jet spectra
@@ -230,7 +241,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
             } 
   
             //daughter loop
-            float yieldCounter[7] = {0};
+            float yieldCounter[8] = {0};
             for(int k = 0; k<(genDau_chg->at(j)).size(); k++){
 
               float ptStar = ptWRTJet(genJetPt->at(j), genJetEta->at(j), genJetPhi->at(j), (genDau_pt->at(j)).at(k), (genDau_eta->at(j)).at(k), (genDau_phi->at(j)).at(k));
@@ -255,9 +266,9 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
               }
   
               //neutral yield counters
-              if( TMath::Abs((genDau_pid->at(j)).at(k)) == 311 ) yieldCounter[3]++;//k0s
+              if( TMath::Abs((genDau_pid->at(j)).at(k)) == 310 ) yieldCounter[3]++;//k0s
               if( TMath::Abs((genDau_pid->at(j)).at(k)) == 3122 ) yieldCounter[4]++;//lambda
-              if( TMath::Abs((genDau_pid->at(j)).at(k)) == 111 ) yieldCounter[7]++;//pi0
+              //if( TMath::Abs((genDau_pid->at(j)).at(k)) == 111 ) yieldCounter[7]++;//pi0
               
               //now charged stuff
               if( (genDau_chg->at(j)).at(k) == 0 ) continue;
@@ -750,15 +761,15 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
   */
 
   
-  weights->Close();
+  if(!isHerwig)  weights->Close();
 }
 
 //Code enters execution here
 int main(int argc, const char* argv[])
 {
-  if(argc != 4)
+  if(argc != 5)
   {
-    std::cout << "Usage: Z_mumu_Channel <fileList1> <fileListFiltered> <redo Weight hist>" << std::endl;
+    std::cout << "Usage: Z_mumu_Channel <fileList1> <fileListFiltered> <redo Weight hist> <isHerwig>" << std::endl;
     return 1;
   }  
 
@@ -775,6 +786,7 @@ int main(int argc, const char* argv[])
   std::ifstream inFile2(fList2.data());
 
   bool redoWeightHist = (bool)( std::stoi(argv[3]) );
+  bool isHerwig = (bool)( std::stoi(argv[4]) );
 
   //read the file list and spit it into a vector of strings based on how the parallelization is to be done
   //each vector is a separate subset of the fileList based on the job number
@@ -812,7 +824,7 @@ int main(int argc, const char* argv[])
     }
   }
 
-  analyze(listOfFiles, listOfFiles2, redoWeightHist);
+  analyze(listOfFiles, listOfFiles2, redoWeightHist, isHerwig);
 
   return 0; 
 }
