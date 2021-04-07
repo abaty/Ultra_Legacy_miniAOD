@@ -155,6 +155,7 @@ void analyze( std::vector< std::string> files){
         jetPt->Fill(genJetPt->at(j), xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale)) );
 
         if(genJetPt->at(j) > 500){
+
           etaStarJetWeightSum += xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale));
           genJetChargedMultiplicity_h->Fill(genJetChargedMultiplicity->at(j), xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale)) );
           mult->Fill(genJetChargedMultiplicity->at(j), xs[qHatHist->FindBin(genQScale) - 1 ] / qHatHist->GetBinContent(qHatHist->FindBin(genQScale)) );
@@ -476,9 +477,14 @@ int main(int argc, const char* argv[])
 
   //read input parameters
   std::string fList = argv[1];
+  //std::string fList2 = argv[2];
   std::string buffer;
   std::vector<std::string> listOfFiles;
   std::ifstream inFile(fList.data());
+  
+  //std::string buffer2;
+  //std::vector<std::string> listOfFiles2;
+  //std::ifstream inFile2(fList2.data());
 
 
   //read the file list and spit it into a vector of strings based on how the parallelization is to be done
@@ -499,7 +505,24 @@ int main(int argc, const char* argv[])
       line++;
     }
   }
-
+/*
+  if(!inFile2.is_open())
+  {
+    std::cout << "Error opening jet file. Exiting." <<std::endl;
+    return 1;
+  }
+  else
+  {
+    int line = 0;
+    while(true)
+    {
+      inFile2 >> buffer2;
+      if(inFile2.eof()) break;
+      listOfFiles2.push_back(buffer2);
+      line++;
+    }
+  }
+*/
   analyze(listOfFiles);
 
   return 0; 

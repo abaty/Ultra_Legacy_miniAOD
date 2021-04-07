@@ -39,6 +39,9 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
   
   const int nMultBinsFine = 23;
   float multBinsFine[nMultBinsFine+1] = {0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90,95,100,110,120,140};
+  
+  const int nMultBinsFine2 = 12;
+  float multBinsFine2[nMultBinsFine2+1] = {0,10,20,30,40,50,60,70,80,90,100,120,140};
 
   TH1D * qHatHist; 
   TH1D * qHatHist2; 
@@ -132,6 +135,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
     }
     avgYieldVsMult500[i] = new  TProfile(Form("avgYieldVsMult500_%d",i),";n_{ch};<Yield per jet>",nMultBinsFine,multBinsFine);
   }
+  TH1D * avgYieldVsMult500Dummy = new TH1D("avgYieldVsMult500Dummy",";n_{ch};<Yield per jet>",nMultBinsFine,multBinsFine);
 
   //0 = inclusive, 1 = proton-initiated, 2 = shower photon, 3 = pi0 decays , 4 = other hadron decays
   TH1D * gammaJt500[nMultBins][5];
@@ -198,6 +202,9 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
         *genDau_phi = std::vector< std::vector< float > >();
         t->GetEntry(i);
 
+        //hard cut at pthat of 1000 to prevent low-stats anomalies from higher pthats
+        if(!isHerwig && genQScale>999.9) continue;
+
         //weight by xsection/total number of gen events in the pthat bin
         float w = 1;
         if(!isHerwig){
@@ -247,7 +254,7 @@ void analyze( std::vector< std::string> files, std::vector< std::string> files2,
               float ptStar = ptWRTJet(genJetPt->at(j), genJetEta->at(j), genJetPhi->at(j), (genDau_pt->at(j)).at(k), (genDau_eta->at(j)).at(k), (genDau_phi->at(j)).at(k));
               
               //photon stuff first
-              if(( genDau_pid->at(j)).at(k) == 22){
+              if(( genDau_pid->at(j)).at(k) == 22 && (genDau_pt->at(j)).at(k) > 2.0 ){
                 if(genJetPt->at(j) > 500){
                   
                   int momPidIndx = -9999;
